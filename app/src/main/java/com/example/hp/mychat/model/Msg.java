@@ -1,4 +1,4 @@
-package com.example.hp.mychat;
+package com.example.hp.mychat.model;
 
 public class Msg {
     public String getUserName() {

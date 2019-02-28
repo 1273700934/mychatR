@@ -8,6 +8,8 @@ import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.TextView;
 
+import com.example.hp.mychat.model.PersonChat;
+
 public class ChatAdapter extends BaseAdapter {
 	private Context context;
 	private List<PersonChat> lists;

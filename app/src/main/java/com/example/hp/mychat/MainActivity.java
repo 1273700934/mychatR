@@ -5,13 +5,21 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.os.Handler;
 import android.text.TextUtils;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Toast;
 
-import java.io.IOException;
+import com.example.hp.mychat.model.Msg;
+import com.example.hp.mychat.model.PersonChat;
+import com.example.hp.mychat.model.Server;
+import com.example.hp.mychat.model.User;
+import com.example.hp.mychat.server.MsgListener;
+import com.example.hp.mychat.server.SocketClient;
+
 import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.List;
@@ -89,7 +97,13 @@ public class MainActivity extends Activity {
 
     private void listen(){
         String ip = SocketClient.getIP(this);
-        client = new SocketClient("192.168.6.109",5251,5252,ip);
+        Server server = new Server();
+        server.setIp("192.168.1.100");
+        server.setPort(5252);
+        User user = new User();
+        user.setIp(ip);
+        user.setPort(5251);
+        client = new SocketClient(user,server);
         client.setMsgListener(new MsgListener() {
             @Override
             public void sendMsg(Msg msg) {
@@ -108,8 +122,33 @@ public class MainActivity extends Activity {
         });
         try {
             client.create();
+            client.sendInitMsg(ip);
         } catch (SocketException e) {
             System.out.println(e.getMessage());
         }
     }
+
+    /**
+     *创建菜单
+     */
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.main,menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+
+        switch (item.getItemId()){
+            case R.id.action_settings:
+
+                break;
+
+            default:
+                break;
+        }
+        return true;
+    }
+
 }

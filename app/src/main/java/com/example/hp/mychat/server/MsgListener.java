@@ -1,4 +1,6 @@
-package com.example.hp.mychat;
+package com.example.hp.mychat.server;
+
+import com.example.hp.mychat.model.Msg;
 
 public interface MsgListener {
     void sendMsg(Msg msg);
