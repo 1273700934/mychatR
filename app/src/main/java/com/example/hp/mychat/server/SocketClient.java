@@ -4,6 +4,7 @@ import android.content.Context;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 
+import com.example.hp.mychat.AppApplication;
 import com.example.hp.mychat.model.Msg;
 import com.example.hp.mychat.model.Server;
 import com.example.hp.mychat.model.User;
@@ -16,7 +17,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class SocketClient {
-    private Server server;
     private int port;
     private DatagramSocket client;
     private Thread th_listen;
@@ -24,16 +24,18 @@ public class SocketClient {
     private MsgListener msgListener;
     private List<User> users;
     private User user;
-    final static String SERVER_WE = "WE";
-    final static String ADD_USER = "AD";
+    final static String WE_USER = "WE";
+    final static String APPLY_USER = "AD";
     final static String ALL_USER = "USERS";
+    final static String EXIT_USER = "EXIT";
+
+    final static String SPLIT = "-";
 
 
-    public SocketClient(User user,Server server){
+    public SocketClient(User user){
         users = new ArrayList<>();
         this.user = user;
         this.port = user.getPort();
-        this.server = server;
     }
 
     public void setMsgListener(MsgListener msgListener) {
@@ -86,29 +88,60 @@ public class SocketClient {
             client.receive( packet );
             //String message = new String( data );
             String message =  new String( data ) ;
+            System.out.println(message);
             String[] msgs = filterCode(message).split("-");
             if(msgs.length >=2){
                switch (msgs[0]){
-                   case SERVER_WE:
+                   case APPLY_USER:
+                       User apply_user = new User();
+                       apply_user.setPort(port);
+                       apply_user.setIp(msgs[1]);
+                       addUser(apply_user);
+                       sendUsersMsg(apply_user);
+                       sendWEUserMsg(apply_user,AppApplication.userList);
+                       Msg msg = new Msg();
+                       msg.setUserName(msgs[1]);
+                       msg.setMessage(msgs[1]+"加入聊天");
+                       msgListener.receiveMsg( msg );
+                       break;
+                   case WE_USER:
                        String resultIP = msgs[1];
                        if( !resultIP.equals( user.getIp() ) ){
                            User user = new User();
                            user.setIp(resultIP);
                            user.setPort(port);
-                           users.add(user);
+                           addUser(user);
                        }
-                       Msg msg = new Msg();
-                       msg.setUserName(server.getIp());
-                       msg.setMessage(msgs[1]+"加入聊天");
-                       msgListener.receiveMsg( msg );
+                       Msg we_msg = new Msg();
+                       we_msg.setUserName(resultIP);
+                       we_msg.setMessage(msgs[1]+"加入聊天");
+                       msgListener.receiveMsg( we_msg );
                        break;
                    case ALL_USER:
+                       AppApplication.userList.clear();
+                       addUser(user);
                        for(int i=1;i<msgs.length;i++){
                            User user = new User();
                            user.setIp(msgs[i]);
                            user.setPort(port);
-                           users.add(user);
+                           addUser(user);
                        }
+                       String users_ip = packet.getAddress().toString();
+                       Msg users_msg = new Msg();
+                       users_msg.setUserName(users_ip);
+                       users_msg.setMessage(String.format("加入%s的群聊",users_ip));
+                       msgListener.receiveMsg(users_msg);
+                       break;
+                   case EXIT_USER:
+                       User user = new User();
+                       user.setIp( msgs[1]);
+                       user.setPort(port);
+                       AppApplication.userList.remove(user);
+                       Msg exit_msg = new Msg();
+                       exit_msg.setUserName( msgs[1] );
+                       exit_msg.setMessage( msgs[1]+"退出聊天" );
+                       msgListener.receiveMsg(exit_msg);
+                       break;
                }
             }else {
                 Msg msg = new Msg();
@@ -119,65 +152,108 @@ public class SocketClient {
         }
     }
 
-    public void sendMsg(final String message ){
-        for(final User user:users){
-            final String sendIP = user.getIp();
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    byte[] send = message.getBytes();
-                    DatagramPacket sendPacket = null;
-                    try {
-                        sendPacket = new DatagramPacket( send, send.length,InetAddress.getByName( sendIP ),port);
-                    } catch (UnknownHostException e) {
-                        Msg error = new Msg();
-                        error.setUserName(user.getName());
-                        error.setMessage(e.getMessage());
-                        msgListener.errorMsg(error);
-                        return;
-                    }
-                    try {
-                        client.send( sendPacket );
-                    } catch (IOException e) {
-                        Msg error = new Msg();
-                        error.setUserName(user.getName());
-                        error.setMessage(e.getMessage());
-                        msgListener.errorMsg(error);
-                    }
+    public void sendMsg(final String message,List<User> users){
+        synchronized (users){
+            for(final User user:users){
+                if( user.getIp().equals(this.user.getIp())){
+                    continue;
                 }
-            }).start();
+                final String sendIP = user.getIp();
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        byte[] send = message.getBytes();
+                        DatagramPacket sendPacket = null;
+                        try {
+                            sendPacket = new DatagramPacket( send, send.length,InetAddress.getByName( sendIP ),port);
+                        } catch (UnknownHostException e) {
+                            Msg error = new Msg();
+                            error.setUserName(user.getName());
+                            error.setMessage(e.getMessage());
+                            msgListener.errorMsg(error);
+                            return;
+                        }
+                        try {
+                            client.send( sendPacket );
+                            System.out.println(message);
+                        } catch (IOException e) {
+                            Msg error = new Msg();
+                            error.setUserName(user.getName());
+                            error.setMessage(e.getMessage());
+                            msgListener.errorMsg(error);
+                        }
+                    }
+                }).start();
+            }
+            Msg msg = new Msg();
+            msg.setUserName(user.getName());
+            msg.setMessage(message);
+            msgListener.sendMsg(msg);
         }
-        Msg msg = new Msg();
-        msg.setUserName(user.getName());
-        msg.setMessage(message);
-        msgListener.sendMsg(msg);
     }
 
-    public void sendInitMsg(final String msg ){
-         final String message = ADD_USER+"-" + msg;
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                byte[] send = message.getBytes();
-                DatagramPacket sendPacket = null;
-                try {
-                    sendPacket = new DatagramPacket( send, send.length,InetAddress.getByName( server.getIp() ),server.getPort());
-                } catch (UnknownHostException e) {
-                    Msg error = new Msg();
-                    error.setUserName(user.getName());
-                    error.setMessage(e.getMessage());
-                    msgListener.errorMsg(error);
-                }
-                try {
-                    client.send( sendPacket );
-                } catch (IOException e) {
-                    Msg error = new Msg();
-                    error.setUserName(user.getName());
-                    error.setMessage(e.getMessage());
-                    msgListener.errorMsg(error);
-                }
+    private boolean isExitUser(User user){
+        for (User user1:AppApplication.userList){
+            if(user1.getIp().equals(user.getIp())){
+                return true;
             }
-        }).start();
+        }
+        return false;
+    }
+
+    private void addUser(User user){
+        if(!isExitUser(user)){
+            AppApplication.userList.add(user);
+        }
+    }
+
+
+    private void sendUsersMsg(User user){
+        String message = ALL_USER + getAllUsers(AppApplication.userList);
+        List<User> users = new ArrayList<>();
+        users.add(user);
+        sendMsg(message,users);
+    }
+
+    private void sendWEUserMsg(User user,List<User> users){
+        String message = WE_USER + SPLIT+user.getIp();
+        sendMsg(message,users);
+    }
+
+    public void sendExitUser(){
+        String exit_msg = EXIT_USER + SPLIT + user.getIp();
+        sendMsg(exit_msg,AppApplication.userList);
+        AppApplication.userList.clear();
+    }
+
+    public void sendAddGroupChat(String ip){
+        sendExitUser();
+        addUser(user);
+        String apply_msg = APPLY_USER + SPLIT + user.getIp();
+        User user = new User();
+        user.setIp(ip);
+        user.setPort(port);
+        List<User> users = new ArrayList<>();
+        users.add(user);
+        sendMsg(apply_msg,users);
+    }
+
+    public void sendWelcomeUser(String ip){
+        User user = new User();
+        user.setIp(ip);
+        user.setPort(port);
+        addUser(user);
+        sendWEUserMsg(user,AppApplication.userList);
+        sendUsersMsg(user);
+    }
+
+
+    private static String getAllUsers(List<User> users){
+        String result = "";
+        for (User user:users){
+            result += SPLIT + user.getIp();
+        }
+        return result;
     }
 
 

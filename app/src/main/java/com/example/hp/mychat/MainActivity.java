@@ -2,6 +2,7 @@ package com.example.hp.mychat;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.text.TextUtils;
@@ -19,6 +20,7 @@ import com.example.hp.mychat.model.Server;
 import com.example.hp.mychat.model.User;
 import com.example.hp.mychat.server.MsgListener;
 import com.example.hp.mychat.server.SocketClient;
+import com.example.hp.mychat.view.SettingDialog;
 
 import java.net.SocketException;
 import java.util.ArrayList;
@@ -30,7 +32,7 @@ public class MainActivity extends Activity {
      * 声明ListView
      */
     private ListView lv_chat_dialog;
-    private SocketClient client;
+    public SocketClient client;
 
     EditText et_chat_message = null;
     /**
@@ -73,7 +75,7 @@ public class MainActivity extends Activity {
                     return;
                 }
                 String msg = et_chat_message.getText().toString();
-                client.sendMsg(msg);
+                client.sendMsg(msg,AppApplication.userList);
             }
         });
     }
@@ -96,14 +98,7 @@ public class MainActivity extends Activity {
     }
 
     private void listen(){
-        String ip = SocketClient.getIP(this);
-        Server server = new Server();
-        server.setIp("192.168.1.100");
-        server.setPort(5252);
-        User user = new User();
-        user.setIp(ip);
-        user.setPort(5251);
-        client = new SocketClient(user,server);
+        client = new SocketClient(AppApplication.user);
         client.setMsgListener(new MsgListener() {
             @Override
             public void sendMsg(Msg msg) {
@@ -122,7 +117,6 @@ public class MainActivity extends Activity {
         });
         try {
             client.create();
-            client.sendInitMsg(ip);
         } catch (SocketException e) {
             System.out.println(e.getMessage());
         }
@@ -142,7 +136,8 @@ public class MainActivity extends Activity {
 
         switch (item.getItemId()){
             case R.id.action_settings:
-
+               SettingDialog settingDialog = new SettingDialog(this);
+               settingDialog.show();
                 break;
 
             default:
