@@ -3,11 +3,12 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+
     <LinearLayout
         android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginLeft="50dp"
+        android:layout_marginLeft="15dp"
         android:layout_marginTop="20dp">
 
         <LinearLayout
@@ -41,12 +42,12 @@
                 android:text="114.116.67.36"/>
             <Button
                 android:id="@+id/add_server"
-                android:layout_width="100dp"
+                android:layout_width="80dp"
                 android:layout_height="match_parent"
                 android:text="加入"/>
             <Button
                 android:id="@+id/exit_server"
-                android:layout_width="100dp"
+                android:layout_width="80dp"
                 android:layout_height="match_parent"
                 android:text="退出"/>
         </LinearLayout>

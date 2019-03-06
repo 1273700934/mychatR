@@ -6,9 +6,12 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.text.TextUtils;
+import android.util.DisplayMetrics;
+import android.view.Display;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
@@ -143,6 +146,12 @@ public class MainActivity extends Activity {
             case R.id.action_settings:
                SettingDialog settingDialog = new SettingDialog(this);
                settingDialog.show();
+                /*WindowManager windowManager = getWindowManager();
+                DisplayMetrics dm = new DisplayMetrics();
+                WindowManager.LayoutParams layoutParams = settingDialog.getWindow().getAttributes();
+                layoutParams.width = dm.widthPixels;
+                layoutParams.height = dm.heightPixels;
+                settingDialog.getWindow().setAttributes(layoutParams);*/
                 break;
 
             default:
@@ -169,4 +178,6 @@ public class MainActivity extends Activity {
 //        listen();
 //        sendInitServer();
     }
+
+
 }

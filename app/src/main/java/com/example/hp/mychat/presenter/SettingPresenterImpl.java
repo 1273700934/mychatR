@@ -30,6 +30,7 @@ public class SettingPresenterImpl implements SettingPresenter {
     public void addOthers(String ip) {
         if(client!=null){
             client.sendAddGroupChat(ip);
+            setView.changeListView();
         }
     }
 
@@ -37,6 +38,7 @@ public class SettingPresenterImpl implements SettingPresenter {
     public void addOwns(String ip) {
         if(client!=null){
             client.sendWelcomeUser(ip);
+            setView.changeListView();
         }
     }
 
@@ -51,6 +53,7 @@ public class SettingPresenterImpl implements SettingPresenter {
             users.add(user);
             AppApplication.addUser(user);
             client.sendMsg(apply_msg,users);
+            setView.changeListView();
         }
     }
 
@@ -64,5 +67,6 @@ public class SettingPresenterImpl implements SettingPresenter {
         users.add(user);
         AppApplication.userList.remove(user);
         client.sendMsg(apply_msg,users);
+        setView.changeListView();
     }
 }
