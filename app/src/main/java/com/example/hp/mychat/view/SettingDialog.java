@@ -6,19 +6,23 @@ import android.content.Context;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.Toast;
 
 import com.example.hp.mychat.MainActivity;
 import com.example.hp.mychat.R;
+import com.example.hp.mychat.model.BO.UserBo;
 import com.example.hp.mychat.model.User;
 import com.example.hp.mychat.presenter.SettingPresenterImpl;
 import com.example.hp.mychat.presenter.ipresenter.SettingPresenter;
 import com.example.hp.mychat.view.iview.SetView;
+import com.example.hp.mychat.Adapter.myInfoAdapter;
 
 import java.util.List;
 
@@ -26,6 +30,7 @@ import butterknife.BindView;
 import butterknife.ButterKnife;
 
 public class SettingDialog extends Dialog implements SetView {
+    private myInfoAdapter myInfoAdapter;
 
     @BindView(R.id.own_ip)
     EditText ownIP;
@@ -57,6 +62,7 @@ public class SettingDialog extends Dialog implements SetView {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_setting);
+        getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
         ButterKnife.bind(this);
         Window dialogWindow = this.getWindow();
         DisplayMetrics m = this.main.getApplicationContext().getResources().getDisplayMetrics();
@@ -123,13 +129,38 @@ public class SettingDialog extends Dialog implements SetView {
 
     @Override
     public void showCurrent(List<User> users) {
-
-
+        myInfoAdapter = new myInfoAdapter(getContext(),users);
+        current.setAdapter(myInfoAdapter);
     }
 
     @Override
     public void showOwnIP(String ip) {
         this.ownIP.setText(ip);
+    }
+
+    @Override
+    public void changeListView() {
+        if (current!=null){
+            main.runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    myInfoAdapter.notifyDataSetChanged();
+                }
+            });
+        }
+    }
+
+    @Override
+    public void show(){
+        super.show();
+        LinearLayout.LayoutParams layoutParams = (LinearLayout.LayoutParams) current.getLayoutParams();
+        DisplayMetrics dm = new DisplayMetrics();
+        WindowManager windowManager = (WindowManager) getContext().getSystemService(Context.WINDOW_SERVICE);
+        windowManager.getDefaultDisplay().getMetrics(dm);
+        layoutParams.width = dm.widthPixels;
+        layoutParams.height = dm.heightPixels;
+        //setContentView((View)R.layout.activity_setting,layoutParams);
+        current.setLayoutParams(layoutParams);
     }
 
 
