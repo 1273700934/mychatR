@@ -39,6 +39,12 @@ public class SettingDialog extends Dialog implements SetView {
     Button addOwns;
     @BindView(R.id.current)
     ListView current;
+    @BindView(R.id.server_ip)
+    EditText serverIP;
+    @BindView(R.id.add_server)
+    Button addServer;
+    @BindView(R.id.exit_server)
+    Button exitServer;
     private SettingPresenter presenter;
     MainActivity main;
 
@@ -54,7 +60,7 @@ public class SettingDialog extends Dialog implements SetView {
         ButterKnife.bind(this);
         Window dialogWindow = this.getWindow();
         DisplayMetrics m = this.main.getApplicationContext().getResources().getDisplayMetrics();
-        WindowManager.LayoutParams p = dialogWindow.getAttributes(); // 获取对话框当前的参数值
+        final WindowManager.LayoutParams p = dialogWindow.getAttributes(); // 获取对话框当前的参数值
         p.height = (int) (m.heightPixels);
         p.width = (int) (m.widthPixels);
         dialogWindow.setAttributes(p);
@@ -81,6 +87,24 @@ public class SettingDialog extends Dialog implements SetView {
                 }
             }
         });
+        addServer.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                String ip = serverIP.getText().toString();
+                if(checkIP(ip)){
+                    presenter.addServer(ip);
+                }
+            }
+        });
+        exitServer.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                String ip = serverIP.getText().toString();
+                if(checkIP(ip)){
+                    presenter.exitServer(ip);
+                }
+            }
+        });
     }
 
     private boolean checkIP(String ip){
@@ -99,6 +123,7 @@ public class SettingDialog extends Dialog implements SetView {
 
     @Override
     public void showCurrent(List<User> users) {
+
 
     }
 

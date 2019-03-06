@@ -1,17 +1,21 @@
 package com.example.hp.mychat.server;
 
 import android.content.Context;
+import android.content.Intent;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 
 import com.example.hp.mychat.AppApplication;
 import com.example.hp.mychat.model.Msg;
-import com.example.hp.mychat.model.Server;
 import com.example.hp.mychat.model.User;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.*;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -22,28 +26,31 @@ public class SocketClient {
     private Thread th_listen;
     private boolean isWork = true;
     private MsgListener msgListener;
-    private List<User> users;
     private User user;
-    final static String WE_USER = "WE";
-    final static String APPLY_USER = "AD";
-    final static String ALL_USER = "USERS";
-    final static String EXIT_USER = "EXIT";
+    public final static String WE_USER = "WE";
+    public final static String APPLY_USER = "AD";
+    public final static String ALL_USER = "USERS";
+    public final static String ALL_SERVER_USER = "SUSERS";
+    public final static String EXIT_USER = "EXIT";
 
-    final static String SPLIT = "-";
+    public final static String SPLIT = "-";
 
 
     public SocketClient(User user){
-        users = new ArrayList<>();
         this.user = user;
         this.port = user.getPort();
+        try {
+            client = new DatagramSocket( port );
+        } catch (SocketException e) {
+            System.out.println(e);
+        }
     }
 
     public void setMsgListener(MsgListener msgListener) {
         this.msgListener = msgListener;
     }
 
-    public void create()throws SocketException{
-        client = new DatagramSocket( port );
+    public void create(){
         th_listen = new Thread( new Runnable() {
             @Override
             public void run() {
@@ -56,6 +63,12 @@ public class SocketClient {
         } );
         th_listen.start();
         System.out.println( "启动成功" );
+    }
+
+    public void stop(){
+        sendExitUser();
+        isWork =false;
+        th_listen = null;
     }
 
     protected String replaceBlank(String str){
@@ -73,12 +86,24 @@ public class SocketClient {
         if (string != null) {
             string = string.trim();
             byte[] zero = new byte[1];
-            zero[0] = (byte) 0;
+            zero[0] = (byte)0;
             String s = new String(zero);
             string = string.replace(s, "");
         }
         return string;
     }
+
+    private User getUser(String userMsg){
+        String[] userInfo = userMsg.split(":");
+        if(userInfo.length>=2){
+            User user = new User();
+            user.setIp(userInfo[0]);
+            user.setPort(Integer.parseInt(userInfo[1]));
+            return user;
+        }
+       return null;
+    }
+
 
 
     private void receive()throws IOException{
@@ -93,10 +118,8 @@ public class SocketClient {
             if(msgs.length >=2){
                switch (msgs[0]){
                    case APPLY_USER:
-                       User apply_user = new User();
-                       apply_user.setPort(port);
-                       apply_user.setIp(msgs[1]);
-                       addUser(apply_user);
+                       User apply_user = getUser( msgs[1] );
+                       AppApplication.addUser(apply_user);
                        sendUsersMsg(apply_user);
                        sendWEUserMsg(apply_user,AppApplication.userList);
                        Msg msg = new Msg();
@@ -107,10 +130,8 @@ public class SocketClient {
                    case WE_USER:
                        String resultIP = msgs[1];
                        if( !resultIP.equals( user.getIp() ) ){
-                           User user = new User();
-                           user.setIp(resultIP);
-                           user.setPort(port);
-                           addUser(user);
+                           User we_user = getUser(msgs[1]);
+                           AppApplication.addUser(we_user);
                        }
                        Msg we_msg = new Msg();
                        we_msg.setUserName(resultIP);
@@ -119,23 +140,30 @@ public class SocketClient {
                        break;
                    case ALL_USER:
                        AppApplication.userList.clear();
-                       addUser(user);
+                       AppApplication.addUser(user);
                        for(int i=1;i<msgs.length;i++){
-                           User user = new User();
-                           user.setIp(msgs[i]);
-                           user.setPort(port);
-                           addUser(user);
+                           User user = getUser(msgs[1]);
+                           AppApplication.addUser(user);
                        }
-                       String users_ip = packet.getAddress().toString();
+                       String users_ip = packet.getAddress().getHostAddress();
                        Msg users_msg = new Msg();
                        users_msg.setUserName(users_ip);
                        users_msg.setMessage(String.format("加入%s的群聊",users_ip));
                        msgListener.receiveMsg(users_msg);
                        break;
+                   case ALL_SERVER_USER:
+                       for(int i=1;i<msgs.length;i++){
+                           User user = getUser(msgs[1]);
+                           AppApplication.addUser(user);
+                       }
+                       String server_ip = packet.getAddress().getHostAddress();
+                       Msg server_msg = new Msg();
+                       server_msg.setUserName(server_ip);
+                       server_msg.setMessage(String.format("加入服务器%s的群聊",server_ip));
+                       msgListener.receiveMsg(server_msg);
+                       break;
                    case EXIT_USER:
-                       User user = new User();
-                       user.setIp( msgs[1]);
-                       user.setPort(port);
+                       User user = getUser(msgs[1]);
                        AppApplication.userList.remove(user);
                        Msg exit_msg = new Msg();
                        exit_msg.setUserName( msgs[1] );
@@ -145,7 +173,7 @@ public class SocketClient {
                }
             }else {
                 Msg msg = new Msg();
-                msg.setUserName( packet.getAddress().getHostName() );
+                msg.setUserName( packet.getAddress().getHostAddress() );
                 msg.setMessage( message );
                 msgListener.receiveMsg( msg );
             }
@@ -153,6 +181,9 @@ public class SocketClient {
     }
 
     public void sendMsg(final String message,List<User> users){
+        if(client==null){
+            return;
+        }
         synchronized (users){
             for(final User user:users){
                 if( user.getIp().equals(this.user.getIp())){
@@ -162,10 +193,10 @@ public class SocketClient {
                 new Thread(new Runnable() {
                     @Override
                     public void run() {
-                        byte[] send = message.getBytes();
+                        byte[]  send = message.getBytes();
                         DatagramPacket sendPacket = null;
                         try {
-                            sendPacket = new DatagramPacket( send, send.length,InetAddress.getByName( sendIP ),port);
+                            sendPacket = new DatagramPacket( send, send.length,InetAddress.getByName( sendIP ),user.getPort());
                         } catch (UnknownHostException e) {
                             Msg error = new Msg();
                             error.setUserName(user.getName());
@@ -192,22 +223,6 @@ public class SocketClient {
         }
     }
 
-    private boolean isExitUser(User user){
-        for (User user1:AppApplication.userList){
-            if(user1.getIp().equals(user.getIp())){
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private void addUser(User user){
-        if(!isExitUser(user)){
-            AppApplication.userList.add(user);
-        }
-    }
-
-
     private void sendUsersMsg(User user){
         String message = ALL_USER + getAllUsers(AppApplication.userList);
         List<User> users = new ArrayList<>();
@@ -228,7 +243,7 @@ public class SocketClient {
 
     public void sendAddGroupChat(String ip){
         sendExitUser();
-        addUser(user);
+        AppApplication.addUser(user);
         String apply_msg = APPLY_USER + SPLIT + user.getIp();
         User user = new User();
         user.setIp(ip);
@@ -238,11 +253,12 @@ public class SocketClient {
         sendMsg(apply_msg,users);
     }
 
+
     public void sendWelcomeUser(String ip){
         User user = new User();
         user.setIp(ip);
         user.setPort(port);
-        addUser(user);
+        AppApplication.addUser(user);
         sendWEUserMsg(user,AppApplication.userList);
         sendUsersMsg(user);
     }
@@ -256,17 +272,34 @@ public class SocketClient {
         return result;
     }
 
+    public static String getIP(Context context) {
+        NetworkInfo info = ((ConnectivityManager) context
+                .getSystemService(Context.CONNECTIVITY_SERVICE)).getActiveNetworkInfo();
+        if (info != null && info.isConnected()) {
+            if (info.getType() == ConnectivityManager.TYPE_MOBILE) {//当前使用2G/3G/4G网络
+                try {
+                    //Enumeration<NetworkInterface> en=NetworkInterface.getNetworkInterfaces();
+                    for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements(); ) {
+                        NetworkInterface intf = en.nextElement();
+                        for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements(); ) {
+                            InetAddress inetAddress = enumIpAddr.nextElement();
+                            if (!inetAddress.isLoopbackAddress() && inetAddress instanceof Inet4Address) {
+                                return inetAddress.getHostAddress();
+                            }
+                        }
+                    }
+                } catch (SocketException e) {
+                    e.printStackTrace();
+                }
 
-    public static String getIP(Context context){
-        try {
-            WifiManager wifiManager = (WifiManager) context
-                    .getSystemService(Context.WIFI_SERVICE);
-            WifiInfo wifiInfo = wifiManager.getConnectionInfo();
-            int i = wifiInfo.getIpAddress();
-            return int2ip(i);
-        }
-        catch (Exception ex){
-            ex.printStackTrace();
+            } else if (info.getType() == ConnectivityManager.TYPE_WIFI) {//当前使用无线网络
+                WifiManager wifiManager = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
+                WifiInfo wifiInfo = wifiManager.getConnectionInfo();
+                String ipAddress = int2ip(wifiInfo.getIpAddress());//得到IPV4地址
+                return ipAddress;
+            }
+        } else {
+            return "0.0.0.0";
         }
         return null;
     }

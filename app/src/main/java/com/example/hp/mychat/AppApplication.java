@@ -11,6 +11,14 @@ import java.util.List;
 public class AppApplication extends Application {
     public static User user;
     public static List<User> userList;
+
+    public static void addUser(final User user){
+        if(user==null){
+            return;
+        }
+        userList.removeIf(user1-> user1.getIp().equals(user.getIp())&&user1.getPort()==user.getPort() );
+        userList.add(user);
+    }
     @Override
     public void onCreate(){
         super.onCreate();

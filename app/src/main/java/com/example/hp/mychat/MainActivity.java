@@ -32,7 +32,7 @@ public class MainActivity extends Activity {
      * 声明ListView
      */
     private ListView lv_chat_dialog;
-    public SocketClient client;
+    public SocketClient client = new SocketClient(AppApplication.user);
 
     EditText et_chat_message = null;
     /**
@@ -56,6 +56,7 @@ public class MainActivity extends Activity {
         };
     };
 
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -65,7 +66,6 @@ public class MainActivity extends Activity {
         et_chat_message = (EditText) findViewById(R.id.et_chat_message);
         chatAdapter = new ChatAdapter(this, personChats);
         lv_chat_dialog.setAdapter(chatAdapter);
-        listen();
         btn_chat_message_send.setOnClickListener(new View.OnClickListener() {
             @SuppressLint("WrongConstant")
             @Override
@@ -76,6 +76,22 @@ public class MainActivity extends Activity {
                 }
                 String msg = et_chat_message.getText().toString();
                 client.sendMsg(msg,AppApplication.userList);
+            }
+        });
+        client.setMsgListener(new MsgListener() {
+            @Override
+            public void sendMsg(Msg msg) {
+                addMsg(msg.getMessage(),true);
+            }
+
+            @Override
+            public void receiveMsg(Msg msg) {
+                addMsg(msg.getMessage(),false);
+            }
+
+            @Override
+            public void errorMsg(Msg msg) {
+                addMsg(msg.getMessage(),false);
             }
         });
     }
@@ -97,29 +113,19 @@ public class MainActivity extends Activity {
         });
     }
 
+    public void sendInitServer(){
+        String apply_msg = SocketClient.APPLY_USER + SocketClient.SPLIT + AppApplication.user.getIp();
+        User user = new User();
+        user.setIp("114.116.67.36");
+        user.setPort(5252);
+        List<User> users = new ArrayList<>();
+        users.add(user);
+        AppApplication.addUser(user);
+        client.sendMsg(apply_msg,users);
+    }
+
     private void listen(){
-        client = new SocketClient(AppApplication.user);
-        client.setMsgListener(new MsgListener() {
-            @Override
-            public void sendMsg(Msg msg) {
-                addMsg(msg.getMessage(),true);
-            }
-
-            @Override
-            public void receiveMsg(Msg msg) {
-                addMsg(msg.getMessage(),false);
-            }
-
-            @Override
-            public void errorMsg(Msg msg) {
-                addMsg(msg.getMessage(),false);
-            }
-        });
-        try {
-            client.create();
-        } catch (SocketException e) {
-            System.out.println(e.getMessage());
-        }
+        client.create();
     }
 
     /**
@@ -133,7 +139,6 @@ public class MainActivity extends Activity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-
         switch (item.getItemId()){
             case R.id.action_settings:
                SettingDialog settingDialog = new SettingDialog(this);
@@ -146,4 +151,22 @@ public class MainActivity extends Activity {
         return true;
     }
 
+    @Override
+    public void onDestroy(){
+        super.onDestroy();
+       // client.stop();
+    }
+    @Override
+    public void onResume(){
+        super.onResume();
+        listen();
+        sendInitServer();
+    }
+
+    @Override
+    public void onStart(){
+        super.onStart();
+//        listen();
+//        sendInitServer();
+    }
 }
